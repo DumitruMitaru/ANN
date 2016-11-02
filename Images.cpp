@@ -1,6 +1,9 @@
 #include "Images.hpp"
 #include <cstdlib>
 #include <ctime>
+
+
+// read and store training images and labels. 
 void Images::read_store_data()
 {
 	using namespace std; 
@@ -14,6 +17,7 @@ void Images::read_store_data()
 
 	if(images && labels)
 	{
+		// ignore first number of bytes of each file
 		for(int i = 0; i < 16; ++i)
 			images.get(); 
 		for(int i = 0; i < 8; ++i)
@@ -41,15 +45,27 @@ void Images::read_store_data()
 }
 
 
+
+// return random image data and labels...used for training neural network
 std::vector<training_data> Images::get_random_data(int num_data)
 {
-	srand(time(NULL)); 
 	using namespace std; 
+	
+	srand(time(NULL)); 
+	
+	// vector to hold training data
+	// random value to access from data reservoir and put into training data
+	// random values used so as to not get duplicate data
 	vector<training_data> sample(num_data); 
 	int random_val = 0; 
 	int* values_used = new int[num_data];
+	
+	// set values used to zero
 	for(int i = 0; i < num_data; ++i)
 		values_used[i] = 0; 
+	
+	// get random value, data at index of random value and put into 
+	// training data vector. Make sure to not get the same random value twice. 
 	for(int i = 0; i < num_data; ++i)
 	{
 		while(is_in(values_used, num_data, random_val))
@@ -59,10 +75,14 @@ std::vector<training_data> Images::get_random_data(int num_data)
 
 		values_used[i] = random_val; 
 	}
+
 	delete[] values_used; 
+	
 	return sample;
 }
 
+
+// helper function to detect if integer is in an array. 
 bool is_in(int* array, int size, int number)
 {
 	for(int i = 0; i < size; ++i)

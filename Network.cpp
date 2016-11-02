@@ -1,8 +1,11 @@
 #include "Network.hpp"
 #include <iostream>
 #include <cmath>
+#include <cstring>
+#include <stdlib.h>
+#include <stdio.h>
 
-// function will set the size of each class variable
+
 // based on row of integers arguements that specifies
 // the number of neurons (value at index) at each layer (index number)
 void Network::set_layers(arma::Row<int> new_layers)
@@ -37,13 +40,16 @@ void Network::gradient_decent(float step_size, std::vector<arma::fvec>& training
 	std::vector<arma::fvec> activations(num_layers); 
 	std::vector<arma::fvec> weighted_outputs(num_layers); 
 	std::vector<arma::fmat> temp_grad(num_layers); 
+	
+	// intialize cost and partial cost...used to display to user. 
 	float cost = 0; 
 	float partial_cost = 0; 	
+	
 	// initialize number of inputs to train on and multiplier
 	int num_trainers = training_inputs.size(); 
 	float multiplier = -1 * step_size / num_trainers; 
 
-	// initialize gradients with proper size
+	// initialize gradients to size of current network
 	for(int i = 1; i < num_layers; ++i)
 	{
 		weights_gradient[i].copy_size(weights[i]); 
@@ -58,26 +64,31 @@ void Network::gradient_decent(float step_size, std::vector<arma::fvec>& training
 		error = back_propagate(training_outputs[i], weighted_outputs, activations.back()); 
 		temp_grad = compute_partial_gradient_weights(activations, error);
 		
-		// sum gradients
+		// sum gradients for all training samples
 		for(int j = 0; j < num_layers; ++j)
 		{
 			weights_gradient[j] += temp_grad[j]; 
 			biases_gradient[j] += error[j]; 
 		}
+		
+		// compute cost value of each training data
+		// this is mainly to output to the user..it is not used in any calculation
 		partial_cost = compute_partial_cost(training_outputs[i], activations.back());
 //		cout << partial_cost << " "; 
 		cost += partial_cost / num_trainers; 
 	}
 		
-		std::cout << "the cost is:  " << cost << "  ";
+//		std::cout << "the cost is:  " << cost << "  ";
+
 	// increment weights and biases by gradients times multiplier
 	for(int i = 1; i < num_layers; ++i)
 	{
 		weights[i] = weights[i] + (weights_gradient[i] * multiplier); 
 		biases[i] = biases[i] + (biases_gradient[i] * multiplier); 
 	}
-	cout << "grad is:  "  << norm(weights_gradient[2]) << "  "; 
-	cout << "weights is :  " << norm(weights[2]) << endl; 
+//	cout << "grad is:  "  << norm(weights_gradient[2]) << "  "; 
+//	cout << "weights is :  " << norm(weights[2]) << endl; 
+
 }
 
 
@@ -142,7 +153,11 @@ std::vector<arma::fmat> Network::compute_partial_gradient_weights(std::vector<ar
 // of the nueral network and the true value
 // this cost function uses quadratic cost
 float Network::compute_partial_cost(arma::fvec& training_output, arma::fvec& network_output)
-{
+{	
+	//using namespace std; 
+	//cout << training_output.t() << endl; 
+	//cout << network_output.t() << endl; 
+
 	return 0.5 * sum(square((training_output -  network_output))); 
 }
 
@@ -157,6 +172,95 @@ arma::fvec Network::compute_partial_cost_gradient(arma::fvec& training_output,ar
 
 	return cost_gradient; 
 }
+
+
+
+// save weights and biases
+void Network::save()
+{
+	using namespace std; 
+	// declare output stream file
+	// string to be appended to file name to indicate layer number
+	// temp string to hold file name with layer number
+	ofstream layer_file; 
+	char layer[] = "2";  
+	char temp[20]; 
+	
+	// remove old neural network file to store number of layers
+	remove_files(); 
+	layer_file.open(LAYER_FILE); 
+
+	if(layer_file)
+		layer_file << num_layers << endl; 
+	else 
+		cout << "layer file not opened" << endl; 
+	layer_file.close();
+
+	// store weights and biases as WEIGHTS_FILE + layer
+	for(int i = 1; i < num_layers; ++i)
+	{
+		strcpy(temp, WEIGHTS_FILE); 
+		weights[i].save(strcat(temp, layer), arma::arma_ascii);
+		strcpy(temp, BIASES_FILE);
+		biases[i].save(strcat(temp, layer), arma::arma_ascii);
+		++(*layer); 
+	}
+}
+
+
+
+// load weights and biases
+void Network::load()
+{
+	using namespace std; 
+	// declare input stream to read number of layers
+	// string to indicate layer number to read from
+	// and temp string to hold file name to read from
+	ifstream layer_input; 
+	char layer[] = "2"; 
+	char temp[20]; 
+
+	// open file and read number of layers into num_layers
+	layer_input.open(LAYER_FILE); 
+	layer_input >> num_layers; 
+	
+	// resize weights and biases
+	weights.resize(num_layers); 
+	biases.resize(num_layers); 
+	
+	// read in weights and baises
+	for(int i = 1; i < num_layers; ++i)
+	{
+		strcpy(temp, WEIGHTS_FILE); 
+		strcat(temp, layer); 
+		weights[i].load(temp); 
+		strcpy(temp, BIASES_FILE); 
+		strcat(temp, layer); 
+		biases[i].load(temp); 
+		++(*layer); 
+	}
+}
+
+// removes biases, weights and layer files previously stored. 
+void Network::remove_files()
+{
+	char layer[] = "1"; 
+	char temp[20]; 
+
+	remove(LAYER_FILE); 
+	
+	do
+	{
+		++(*layer);
+		strcpy(temp, BIASES_FILE); 
+		strcat(temp, layer); 
+		remove(temp); 
+		strcpy(temp, WEIGHTS_FILE);
+		strcat(temp, layer); 
+
+	}while(remove(temp) == 0);
+}
+
 
 
 // compute the sigma function on a vector of values
