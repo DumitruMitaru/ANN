@@ -1,10 +1,10 @@
-#include "Images.hpp"
+#include "Data_manager.hpp"
 #include <cstdlib>
 #include <ctime>
 
 
 // read and store training images and labels. 
-void Images::read_store_data()
+void Data_manager::read_store_data()
 {
 	using namespace std; 
 	ifstream images; 
@@ -42,21 +42,22 @@ void Images::read_store_data()
 		}
 	}
 
+	srand(time(NULL)); 
+
 }
 
 
 
 // return random image data and labels...used for training neural network
-std::vector<training_data> Images::get_random_data(int num_data)
+std::vector<image_data> Data_manager::get_random_data(int num_data)
 {
 	using namespace std; 
 	
-	srand(time(NULL)); 
 	
 	// vector to hold training data
 	// random value to access from data reservoir and put into training data
 	// random values used so as to not get duplicate data
-	vector<training_data> sample(num_data); 
+	vector<image_data> sample(num_data); 
 	int random_val = 0; 
 	int* values_used = new int[num_data];
 	
