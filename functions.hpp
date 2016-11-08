@@ -3,9 +3,9 @@
 
 #include <armadillo>
 
-float sigma(float& value);
-float dsigma(float& value);
-arma::fvec sigma(arma::fvec& input_vector);
-arma::fvec dsigma(arma::fvec& input_vector);
+double sigma(double& value);
+double dsigma(double& value);
+arma::vec sigma(arma::vec& input_vector);
+arma::vec dsigma(arma::vec& input_vector);
 
 #endif

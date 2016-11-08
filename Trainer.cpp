@@ -1,45 +1,36 @@
 #include "Trainer.hpp"
 
 
-float Trainer::train(float step_size, std::vector<image_data>& data)
+
+// perfor one iteration of gradient decent with set of image data and step size
+void Trainer::train(float step_size, std::vector<image_data>& data)
 {
 	using namespace std;
 
-	arma::fvec cost_vector; 
+	arma::vec cost_vector; 
 	int num_data = data.size(); 
 	float multiplier = step_size / num_data; 
-	float cost = 0; 
+	
+	// iterate through image data to compute gradients
 	for(int i = 0; i < num_data; ++i)
 	{
-	//	cout << "1" << endl;
-		feed_forward(data[i].image);
-	//	cout << "2" << endl;
+		feed_forward(data[i].image);			
 		cost_vector = compute_cost_vector(data[i].label);
-	//	cout << "3" << endl;
 		back_propagate(cost_vector);
-	//	cout << "4" << endl;
-		compute_gradients();
-	//	cout << "5" << endl;
-//		cost += (compute_cost(data[i].label) / num_data); 
-//		std::cout << compute_cost(data[i].label) << std::endl; 
+		compute_gradients(); 
 	}
 
-
+	// perform gradient decent and then reset gradients to zero
 	gradient_decent(multiplier);
 	reset_gradients(); 
-//	cout << "cost is: " << cost << endl; 
-//	cout << data.back().label << endl; 
-//	cout << activations.back() << endl; 
-//	cout << norm(weights_gradient[1]) << endl;
-
-	return cost; 
 }
+
 
 
 // feed training data forward and 
 // compute weighted outputs and activations
 // for each layer
-void Trainer::feed_forward(arma::fvec& image_data)
+void Trainer::feed_forward(arma::vec& image_data)
 {
 	activations[0] = image_data; 
 
@@ -53,9 +44,9 @@ void Trainer::feed_forward(arma::fvec& image_data)
 
 
 // compute the cost vector after training data is fed forward
-arma::fvec Trainer::compute_cost_vector(arma::fvec& label_data)
+arma::vec Trainer::compute_cost_vector(arma::vec& label_data)
 {
-	arma::fvec cost_vector = activations.back() - label_data;
+	arma::vec cost_vector = activations.back() - label_data;
 	
 	return cost_vector; 
 }
@@ -63,7 +54,7 @@ arma::fvec Trainer::compute_cost_vector(arma::fvec& label_data)
 
 
 // compute cost after training data is fed forward
-float Trainer::compute_cost(arma::fvec& label_data)
+float Trainer::compute_cost(arma::vec& label_data)
 {
 	float cost = 0.5 * sum(square(label_data - activations.back())); 
 
@@ -74,7 +65,7 @@ float Trainer::compute_cost(arma::fvec& label_data)
 
 // back propagate cost vector and compute error
 // for each layer
-void Trainer::back_propagate(arma::fvec& cost_vector)
+void Trainer::back_propagate(arma::vec& cost_vector)
 {
 	error.back() = cost_vector % dsigma(weighted_outputs.back());
 	
@@ -87,13 +78,15 @@ void Trainer::back_propagate(arma::fvec& cost_vector)
 
 
 // compute gradient for weights and biases
-// for 1 training input
+// for 1 training input and add them to current
+// gradients. 
 void Trainer::compute_gradients()
 {
-	std::vector<arma::fvec> temp_gradb(num_layers); 
-	std::vector<arma::fmat> temp_gradw(num_layers); 
+	// temporary gradients to be added to data member gradients
+	std::vector<arma::vec> temp_gradb(num_layers); 
+	std::vector<arma::mat> temp_gradw(num_layers); 
 
-
+	// compute gradients
 	for(int i = 1; i < num_layers; ++i)
 	{	
 		temp_gradb[i].copy_size(biases_gradient[i]); 
@@ -104,6 +97,7 @@ void Trainer::compute_gradients()
 		temp_gradw[i].each_col() %= error[i];
 	}
 
+	// add temp gradients to data member gradients
 	for(int i = 1; i < num_layers; ++i)
 	{
 		biases_gradient[i] += temp_gradb[i]; 
@@ -128,11 +122,10 @@ void Trainer::gradient_decent(float multiplier)
 
 
 
-
 // give trainer access to networks weights and biases
 // initialize gradients, error, activations and weighted outputs
 // to proper size
-void Trainer::set_weights_biases(std::vector<arma::fmat>* weights, std::vector<arma::fvec>* biases)
+void Trainer::set_weights_biases(std::vector<arma::mat>* weights, std::vector<arma::vec>* biases)
 {
 	num_layers = weights->size();
 
@@ -157,6 +150,8 @@ void Trainer::set_weights_biases(std::vector<arma::fmat>* weights, std::vector<a
 }
 
 
+
+// set gradients back to zero
 void Trainer::reset_gradients()
 {
 	for(int i = 0; i < num_layers; ++i)

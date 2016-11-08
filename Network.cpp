@@ -1,47 +1,54 @@
 #include "Network.hpp"
 #include "functions.hpp"
 #include <iostream>
-#include <cmath>
+//#include <cmath>
 #include <string>
 #include <stdlib.h>
 #include <stdio.h>
-#include "Trainer.hpp"
-#include "data_struct.hpp"
 
 
-void Network::train(float step_size, std::vector<image_data>& train_data, int iterations)
+
+
+// perform SGD 
+void Network::train(float step_size, std::vector<image_data>& train_data, int updates)
 {
-	for(int i = 0; i < iterations; ++i)
+	for(int i = 0; i < updates; ++i)
 		 teacher.train(step_size, train_data); 
 }
 
+
+// test network and return accuracy
 float Network::test(std::vector<image_data>& test_data)
 {
-	int true_value; 
-	int network_output; 
-	float num_correct = 0;
-	float perc_correct;
-	int num_data = test_data.size(); 
+	int true_value; 	// label data 
+	int network_output; 	// output from network
+	int num_correct = 0;	// number of images correctly identified
+	float perc_correct;	// percentage of correcly identified images
+	int num_data = test_data.size(); // size of test set
 
+	// iterate through test data and compare network output 
+	// to true value
 	for(int i = 0; i < num_data; ++i)
 	{
 		network_output = compute(test_data[i].image); 
 		true_value = test_data[i].label.index_max();
-//		std::cout << test_data[i].label << std::endl; 
 
 		if(network_output == true_value)
 			++num_correct; 
 	}
 
+	// compute and return accuracy
 	perc_correct = 100.0 * num_correct / num_data; 
 	return perc_correct; 
 }
 
 
-int Network::compute(arma::fvec& input)
+// compute input image data and return result
+int Network::compute(arma::vec& input)
 {
-	std::vector<arma::fvec> activations(num_layers);
-	std::vector<arma::fvec> weighted_outputs(num_layers); 
+
+	std::vector<arma::vec> activations(num_layers);
+	std::vector<arma::vec> weighted_outputs(num_layers); 
 	activations[0] = input; 
 
 	for(int i = 1; i < num_layers; ++i)
@@ -49,8 +56,8 @@ int Network::compute(arma::fvec& input)
 		weighted_outputs[i] = weights[i] * activations[i - 1] + biases[i];
 		activations[i] = sigma(weighted_outputs[i]); 
 	}
-
-//		std::cout << activations.back() << std::endl; 
+	
+	//result will be the index of the largest value of the last layer
 	return activations.back().index_max(); 
 }
 
@@ -62,7 +69,7 @@ void Network::set_layers(arma::Row<int> new_layers)
 	num_layers = lay.size(); 	
 	weights.resize(num_layers); 
 	biases.resize(num_layers);	
-
+	arma::arma_rng::set_seed_random();
 	for(int i = 1; i < num_layers; i++)
 	{
 		// set size of weights and biases and initialize to random values
@@ -72,11 +79,10 @@ void Network::set_layers(arma::Row<int> new_layers)
 		biases[i].randn();
 
 	}
-
+	// give teacher access to weights and biases
 	teacher.set_weights_biases(&weights, &biases); 
 	
 }
-
 
 
 
@@ -96,10 +102,12 @@ void Network::save()
 	layer_file.open(LAYER_FILE); 
 
 	if(layer_file)
+	{
 		layer_file << num_layers << endl; 
+		layer_file.close();
+	}
 	else 
 		cout << "layer file not opened" << endl; 
-	layer_file.close();
 
 	// store weights and biases as WEIGHTS_FILE + layer
 	for(int i = 1; i < num_layers; ++i)
@@ -147,10 +155,12 @@ void Network::load()
 		biases[i].load(temp.c_str(), arma::arma_ascii); 
 		++layer; 
 	}
-
+	// give teach access to weights and biases
 	teacher.set_weights_biases(&weights, &biases); 
 
 }
+
+
 
 // removes biases, weights and layer files previously stored. 
 void Network::remove_files()
@@ -173,3 +183,14 @@ void Network::remove_files()
 }
 
 
+
+// initialize weights and biases to random values
+void Network::reset()
+{
+	for(int i = 1; i < num_layers; i++)
+	{
+		weights[i].randn();
+		biases[i].randn();
+
+	}
+}

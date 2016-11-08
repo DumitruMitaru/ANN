@@ -14,82 +14,141 @@
 using namespace std; 
 using namespace arma;
 
+
+// use to hold hyper parameters for optimizing neural network
+struct parameters
+{
+	int sample_size; 
+	float step_size; 
+	int epochs; 
+	int updates; 
+};
+
+
+
+void optimize(Network& ann, std::vector<parameters> list, int list_size); // iterate through list of parameters and train network, output and save data
+void print_results(parameters& set, float accuracy, const char file_name[]);	  // print hyper parameters and accuracy of network obtained from said parameters
+parameters create_parameters(int sample_size, float step_size, int epochs, int updates);	// create parameter structure
+void save(parameters& set, float accuracy);	// save hyper parameters and accuracy of network obtained form said parameters
+
+
+// short program for how the network can be trained
 int main()
 {
 	
 	Row<int> lay; 				// vector to hold layers and number of neurons in each layer
-	Data_manager data; 			// object to load a feel image data
 	Network brain; 				// network
-	vector<image_data> sample;		// vector of image data in vector of struct...not used for network functions so I should fix this
-//	vector<image_data> test; 
-	char user_input; 			// user input from command line
-	int iter = 0; 				// number of training iterations.
-	float init_acc = 0; 
-	float final_acc = 0; 
-
-	// ask if user would like to load a previously saved network
-	cout << "load weights and biases? y or n:  "; 
-	cin >> user_input; 
-	if(user_input == 'y')
-		brain.load(); 
-	else
-	{
-		lay << 784 << 30 << 10; 	// create a network with 28 * 28 = 784 neruons in the first layer and 30 and 10 in the second. 
-		brain.set_layers(lay); 		// set layers
-	}
+	vector<parameters> list;		// list of hyper parameters
 	
-	cout << "do you want to train? y or n: "; 
-	cin >> user_input; 
-	cin.ignore(100, '\n'); 
+	lay << 784 << 30 << 10; 	// create a network with 28 * 28 = 784 neruons in the first layer and 30 and 10 in the second. 
+	brain.set_layers(lay); 		// set layers
+	
 
-	data.read_store_data(); 
+	
+	// list of hyper parameter to test for
+	list.push_back(create_parameters(10, 0.03, 20, 1));
+	list.push_back(create_parameters(10, 0.3, 20, 1)); 
+	list.push_back(create_parameters(10, 0.8, 20, 1)); 
+	list.push_back(create_parameters(10, 1.0, 20, 1)); 
+	list.push_back(create_parameters(10, 3.0, 20, 1));
+//	list.push_back(create_parameters(100, 2, 100, 100)); 
+//	list.push_back(create_parameters(10, 3, 30, 100)); 
 
-	if(user_input == 'y')
-	{
-		cout << "number of iterations:  "; 
-		cin >> iter; 
-		cin.ignore(100, '\n');
-
+	
+	// train network with list of parameters	
+	optimize(brain, list, list.size()); 
 		
-		sample = data.get_random_data(1000);
-		init_acc = brain.test(sample);
+	return 0; 
+}
 
-		for(int i = 0; i < iter; ++i)
+void optimize(Network& ann, std::vector<parameters> list, int list_size)
+{
+	using namespace std;
+
+	float accuracy;			// evaluated after each epoch
+	Data_manager manager;		// used to retrieve test and training data
+	std::vector<std::vector<image_data> > train_data; 	// set of disjoint subsets of total training data
+	std::vector<image_data> test_data; 			// set of testing data
+	int num_mini_batches; 					// number of mini_batches in training data
+	char file_name = "testing results.txt"; 		// file to save results to
+
+	manager.load();			     // load training and test data 
+	test_data = manager.get_test_data(); // retrieve test data
+
+	// iterate through the list of hyper parameters and test network
+	for(int i = 0; i < list_size; ++i)
+	{
+		train_data = manager.get_mini_batches(list[i].sample_size);  // obtain training data in mini batches of sample size
+		num_mini_batches = train_data.size();			     // calc number of batches
+
+		// iterate through epochs
+		for(int j = 0; j < list[i].epochs; ++j)
 		{
-			sample = data.get_random_data(100);	
-			brain.train(1, sample, 1);
-//			sample = data.get_random_data(1000); 
-//			cout << "percent accuracy: %" << brain.test(sample) << endl; 
+			// iterate through training data and perform SGD with each subset
+			for(int k = 0; k < num_mini_batches; ++k)
+			{
+				ann.train(list[i].step_size, train_data[k], list[i].updates);
+			}
+
+			// calc and print accuracy
+			cout << "epoch " << j << " complete: "; 
+			accuracy = ann.test(test_data); 
+			cout << "accuracy %" << accuracy << endl; 
 
 		}
-
-		sample = data.get_random_data(1000); 
-		final_acc = brain.test(sample); 
 		
-		cout << "ACCURACY BEFORE TRAINING: %" << init_acc << endl; 
-		cout << "ACCURACY AFTER TRAINING: %" << final_acc << endl; 
+		// print results of training with set of hyper paramters, save and reset network weights and biases
+		print_results(list[i], accuracy);
+		save(list[i], accuracy, file_name); 
+		ann.reset(); 
 	}
-	else
+
+
+}
+
+
+
+parameters create_parameters(int sample_size, float step_size, int epochs, int updates)
+{
+	parameters set_to_return; 
+	
+	set_to_return.sample_size = sample_size; 
+	set_to_return.step_size = step_size; 
+	set_to_return.epochs = epochs; 
+	set_to_return.updates = updates; 
+
+	return set_to_return; 
+}
+
+
+
+void print_results(parameters& set, float accuracy)
+{
+	cout << endl;
+	cout << "sample size: " << set.sample_size << endl; 
+	cout << "step size:  " << set.step_size << endl; 
+	cout << "number of epochs:  " << set.epochs << endl; 
+	cout << "updates per epoch: " << set.updates << endl; 
+	cout << "accuracy: " << accuracy << endl; 
+	cout << endl; 
+}
+
+void save(parameters& set, float accuracy, const char file_name)
+{
+	ofstream data_file; 
+
+	data_file.open(file_name, ios::app); 
+
+	if(data_file)
 	{
-		do
-		{
-			sample = data.get_random_data(1); 
-			cout << "true value: " << sample[0].label.index_max() << endl; 
-			cout << "network output: " << brain.compute(sample[0].image) << endl; 
-			cout << endl; 
-			cout << "continue? y or n: "; 
-			cin >> user_input; 
-			cin.ignore(100, '\n');
-			cout << endl; 
+		data_file << endl; 
+		data_file << "sample size: " << set.sample_size << endl;
+		data_file << "step size: " << set.step_size << endl;
+		data_file << "number of epochs: " << set.epochs << endl;
+		data_file << "updates per epoch: " << set.updates << endl; 
+		data_file << "accuracy: " << accuracy << endl;
 
-		}while(user_input == 'y'); 
+		data_file.close(); 
 	}
 
-	// ask if user would like to save data
-	cout << "save weights and biases? y or n:  "; 
-	cin >> user_input; 
-	if(user_input == 'y')
-		brain.save(); 
-
-	return 0; 
 }

@@ -7,8 +7,8 @@
 // from MNIST data set
 struct image_data
 {
-	arma::fvec image; 
-	arma::fvec label; 
+	arma::vec image; 
+	arma::vec label; 
 };
 
 #endif
